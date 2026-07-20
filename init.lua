@@ -124,6 +124,21 @@ do
   --  See `:help 'clipboard'`
   vim.schedule(function() vim.o.clipboard = 'unnamedplus' end)
 
+  -- On a headless server there is no clipboard tool for `unnamedplus` to reach.
+  -- xclip and xsel both talk to an X server, so Neovim ignores them when $DISPLAY
+  -- is unset and `"+` silently does nothing -- installing xclip does not help.
+  -- Route the clipboard through the terminal instead: kitty implements OSC 52, so
+  -- a yank on the server lands in the Mac's clipboard over the existing ssh
+  -- connection. macOS is left alone, where pbcopy is found automatically.
+  if vim.fn.has 'mac' == 0 and vim.env.DISPLAY == nil and vim.env.WAYLAND_DISPLAY == nil then
+    local osc52 = require 'vim.ui.clipboard.osc52'
+    vim.g.clipboard = {
+      name = 'OSC 52',
+      copy = { ['+'] = osc52.copy '+', ['*'] = osc52.copy '*' },
+      paste = { ['+'] = osc52.paste '+', ['*'] = osc52.paste '*' },
+    }
+  end
+
   -- Enable break indent
   vim.o.breakindent = true
 
